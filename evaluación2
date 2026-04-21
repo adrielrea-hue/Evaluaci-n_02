@@ -1,0 +1,56 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.io import wavfile
+from scipy.signal import get_window
+from scipy.fft import rfft, rfftfreq
+
+FS, audio = wavfile.read('lung-sound.wav')
+
+if len(audio.shape) > 1:
+    audio = audio[:, 0]
+
+audio = audio.astype(float)
+audio = audio / np.max(np.abs(audio))
+
+print("Duración:", len(audio)/FS, "segundos")
+
+threshold = 0.02
+indices = np.where(np.abs(audio) > threshold)[0]
+
+if len(indices) == 0:
+    print("No se encontró señal útil")
+    exit()
+
+start = indices[0]
+
+N = 4096
+segment = audio[start:start+N]
+
+if len(segment) < N:
+    segment = np.pad(segment, (0, N - len(segment)))
+
+window = get_window('hann', N)
+windowed = segment * window
+
+yf = rfft(windowed)
+xf = rfftfreq(N, 1/FS)
+
+mag = np.abs(yf)
+
+peak_index = np.argmax(mag)
+peak_freq = xf[peak_index]
+peak_value = mag[peak_index]
+
+print(f"Frecuencia pico: {peak_freq:.2f} Hz")
+
+# --- GRAFICAR ---
+plt.figure(figsize=(10,5))
+plt.plot(xf, mag)
+
+plt.xlim(0, 2000)
+plt.xlabel("Frecuencia (Hz)")
+plt.ylabel("Magnitud")
+plt.title("Espectro del sonido respiratorio")
+plt.grid()
+
+plt.show()
